@@ -636,6 +636,30 @@
       </table>
     </div>
 
+    <!-- Bloc copier-coller -->
+    <div id="copypaste-block" style="display:none; margin-top:1.5rem;">
+      <p class="compare-title">Prêt à copier-coller</p>
+      <div style="position:relative;">
+        <pre id="copypaste-text" style="
+          font-family:'DM Mono',monospace; font-size:13px; line-height:1.8;
+          background:var(--surface2); border:0.5px solid var(--border);
+          border-radius:var(--radius-md); padding:1rem 1.25rem;
+          color:var(--text); white-space:pre-wrap; word-break:break-word;
+        "></pre>
+        <button onclick="copyText()" style="
+          position:absolute; top:10px; right:10px;
+          display:flex; align-items:center; gap:5px;
+          padding:6px 12px; border:0.5px solid var(--border-strong);
+          border-radius:6px; background:var(--surface);
+          font-family:'Syne',system-ui,sans-serif; font-size:11px; font-weight:600;
+          color:var(--text); cursor:pointer; transition:background 0.15s;
+        " id="copy-btn">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11H2a1 1 0 01-1-1V2a1 1 0 011-1h8a1 1 0 011 1v1"/></svg>
+          Copier
+        </button>
+      </div>
+    </div>
+
     <div class="export-bar print-hide">
       <button class="btn" onclick="exportPDF()">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 1h6l3 3v10a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1z"/><path d="M9 1v4h3"/><path d="M5 9h6M5 12h4"/></svg>
@@ -653,16 +677,23 @@ function parseNum(str) {
   return parseFloat(str.replace(',', '.').replace(/\s/g, ''));
 }
 
+function sep(str) {
+  // Insère un espace fine (\u202f) comme séparateur de milliers
+  var parts = str.split(',');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '\u202f');
+  return parts.join(',');
+}
+
 function fmt(n, d) {
   d = (d === undefined) ? 2 : d;
   if (isNaN(n) || !isFinite(n)) return '—';
-  return n.toFixed(d).replace('.', ',') + '\u202f€';
+  return sep(n.toFixed(d).replace('.', ',')) + '\u202f€';
 }
 
 function fmtN(n, d, suffix) {
   d = (d === undefined) ? 0 : d;
   if (isNaN(n) || !isFinite(n)) return '—';
-  return n.toFixed(d).replace('.', ',') + (suffix ? '\u202f' + suffix : '');
+  return sep(n.toFixed(d).replace('.', ',')) + (suffix ? '\u202f' + suffix : '');
 }
 
 function computeArticle(pv, marge, tva, qte) {
@@ -817,6 +848,49 @@ function calcCompare() {
   setEcart('e-vmh-val', 'e-vmh-pct', r1 ? r1.vmh : NaN, r2 ? r2.vmh : NaN, true);
   setEcart('e-mm-val', 'e-mm-pct', r1 ? r1.masse : NaN, r2 ? r2.masse : NaN, false);
   setEcart('e-pa-val', 'e-pa-pct', r1 ? r1.pa : NaN, r2 ? r2.pa : NaN, false);
+
+  /* ── Bloc copier-coller ── */
+  var block = document.getElementById('copypaste-block');
+  var pre   = document.getElementById('copypaste-text');
+
+  function ratio(a, b) {
+    if (isNaN(a) || isNaN(b) || a === 0) return null;
+    return (b / a);
+  }
+
+  function fmtRatio(r) {
+    if (r === null) return '—';
+    return '\u00d7' + r.toFixed(1).replace('.', ',');
+  }
+
+  var rRot  = ratio(v1.qte,          v2.qte);
+  var rCa   = ratio(r1 ? r1.caTtc : NaN, r2 ? r2.caTtc : NaN);
+  var rMasse= ratio(r1 ? r1.masse : NaN, r2 ? r2.masse : NaN);
+  var rVmh  = ratio(r1 ? r1.vmh : NaN,   r2 ? r2.vmh : NaN);
+
+  var hasData = r1 && r2;
+  if (hasData) {
+    block.style.display = 'block';
+    pre.textContent =
+      'Rotation\u00a0: ' + fmtRatio(rRot) + '\n' +
+      'CA\u00a0: '       + fmtRatio(rCa)  + '\n' +
+      'Masse de marge\u00a0: ' + fmtRatio(rMasse) + '\n' +
+      'VMH\u00a0: '      + fmtRatio(rVmh);
+  } else {
+    block.style.display = 'none';
+  }
+}
+
+/* ── Copier texte ── */
+function copyText() {
+  var text = document.getElementById('copypaste-text').textContent;
+  navigator.clipboard.writeText(text).then(function() {
+    var btn = document.getElementById('copy-btn');
+    btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8l4 4 8-8"/></svg> Copié !';
+    setTimeout(function() {
+      btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11H2a1 1 0 01-1-1V2a1 1 0 011-1h8a1 1 0 011 1v1"/></svg> Copier';
+    }, 2000);
+  });
 }
 
 /* ── Export PDF ── */
